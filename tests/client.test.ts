@@ -17,6 +17,11 @@ describe('AppStoreConnect', () => {
     expect(asc.subscriptionOfferCodes).toBeDefined();
     expect(asc.subscriptionOfferCodeCustomCodes).toBeDefined();
     expect(asc.subscriptionOfferCodeOneTimeUseCodes).toBeDefined();
+    expect(asc.builds).toBeDefined();
+    expect(asc.inAppPurchases).toBeDefined();
+    expect(asc.customerReviews).toBeDefined();
+    expect(asc.users).toBeDefined();
+    expect(asc.betaGroups).toBeDefined();
   });
 
   it('accepts credentials without issuerId (individual key)', () => {
@@ -32,6 +37,11 @@ describe('AppStoreConnect', () => {
     expect(asc.subscriptionOfferCodes).toBeDefined();
     expect(asc.subscriptionOfferCodeCustomCodes).toBeDefined();
     expect(asc.subscriptionOfferCodeOneTimeUseCodes).toBeDefined();
+    expect(asc.builds).toBeDefined();
+    expect(asc.inAppPurchases).toBeDefined();
+    expect(asc.customerReviews).toBeDefined();
+    expect(asc.users).toBeDefined();
+    expect(asc.betaGroups).toBeDefined();
   });
 });
 
@@ -344,6 +354,55 @@ describe('AppStoreConnect pagination', () => {
       '/v1/subscriptionOfferCodes/oc-1/oneTimeUseCodes',
       '/v1/subscriptionOfferCodeCustomCodes/cc-1',
       '/v1/subscriptionOfferCodeOneTimeUseCodes/otu-1',
+    ]);
+  });
+
+  it('hits the expected paths for builds, IAPs, reviews, users, beta groups', async () => {
+    const paths: string[] = [];
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      fetch: async (input) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        paths.push(url.pathname);
+        return new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    });
+
+    await asc.builds.retrieve('b-1');
+    await asc.builds.list();
+    await asc.builds.listForApp('app-9');
+    await asc.inAppPurchases.retrieve('iap-1');
+    await asc.inAppPurchases.listForApp('app-9');
+    await asc.customerReviews.retrieve('rev-1');
+    await asc.customerReviews.listForApp('app-9');
+    await asc.users.retrieve('u-1');
+    await asc.users.list();
+    await asc.betaGroups.retrieve('bg-1');
+    await asc.betaGroups.list();
+    await asc.betaGroups.listForApp('app-9');
+    await asc.betaGroups.listTesters('bg-1');
+    await asc.betaGroups.listBuilds('bg-1');
+
+    expect(paths).toEqual([
+      '/v1/builds/b-1',
+      '/v1/builds',
+      '/v1/apps/app-9/builds',
+      '/v2/inAppPurchases/iap-1',
+      '/v1/apps/app-9/inAppPurchasesV2',
+      '/v1/customerReviews/rev-1',
+      '/v1/apps/app-9/customerReviews',
+      '/v1/users/u-1',
+      '/v1/users',
+      '/v1/betaGroups/bg-1',
+      '/v1/betaGroups',
+      '/v1/apps/app-9/betaGroups',
+      '/v1/betaGroups/bg-1/betaTesters',
+      '/v1/betaGroups/bg-1/builds',
     ]);
   });
 

@@ -1,13 +1,18 @@
 import { TokenProvider } from './auth.js';
 import { AppStoreConnectAPIError, type AppStoreConnectAPIErrorDetail } from './errors.js';
 import { Apps } from './resources/apps.js';
+import { BetaGroups } from './resources/beta-groups.js';
+import { Builds } from './resources/builds.js';
+import { CustomerReviews } from './resources/customer-reviews.js';
 import { FinanceReports } from './resources/finance-reports.js';
+import { InAppPurchases } from './resources/in-app-purchases.js';
 import { SalesReports } from './resources/sales-reports.js';
 import { SubscriptionGroups } from './resources/subscription-groups.js';
 import { SubscriptionOfferCodeCustomCodes } from './resources/subscription-offer-code-custom-codes.js';
 import { SubscriptionOfferCodeOneTimeUseCodes } from './resources/subscription-offer-code-one-time-use-codes.js';
 import { SubscriptionOfferCodes } from './resources/subscription-offer-codes.js';
 import { Subscriptions } from './resources/subscriptions.js';
+import { Users } from './resources/users.js';
 
 /**
  * A single value accepted inside {@link QueryParams}.
@@ -194,6 +199,37 @@ export class AppStoreConnect {
    */
   readonly subscriptionOfferCodeOneTimeUseCodes: SubscriptionOfferCodeOneTimeUseCodes;
 
+  /**
+   * Operations on the `builds` resource — retrieve a single build and
+   * list builds (flat collection or scoped to an app).
+   */
+  readonly builds: Builds;
+
+  /**
+   * Operations on the v2 `inAppPurchases` resource — retrieve a single
+   * non-subscription IAP and list IAPs for an app.
+   */
+  readonly inAppPurchases: InAppPurchases;
+
+  /**
+   * Operations on the `customerReviews` resource — retrieve a single
+   * review and list reviews for an app.
+   */
+  readonly customerReviews: CustomerReviews;
+
+  /**
+   * Operations on the `users` resource — retrieve a single team member
+   * and list the authenticated team's users.
+   */
+  readonly users: Users;
+
+  /**
+   * Operations on the `betaGroups` resource — retrieve a group, list
+   * groups (flat or scoped to an app), enumerate testers and builds per
+   * group.
+   */
+  readonly betaGroups: BetaGroups;
+
   /** Fully-qualified base URL including the `/v1` version segment. */
   private readonly baseUrl: string;
   /** Concrete `fetch` implementation used for every outbound request. */
@@ -222,6 +258,11 @@ export class AppStoreConnect {
     this.subscriptionOfferCodes = new SubscriptionOfferCodes(this);
     this.subscriptionOfferCodeCustomCodes = new SubscriptionOfferCodeCustomCodes(this);
     this.subscriptionOfferCodeOneTimeUseCodes = new SubscriptionOfferCodeOneTimeUseCodes(this);
+    this.builds = new Builds(this);
+    this.inAppPurchases = new InAppPurchases(this);
+    this.customerReviews = new CustomerReviews(this);
+    this.users = new Users(this);
+    this.betaGroups = new BetaGroups(this);
   }
 
   /**

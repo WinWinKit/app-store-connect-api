@@ -78,6 +78,47 @@ export type {
   SubscriptionOfferCodeOneTimeUseCodeResponse,
   RetrieveSubscriptionOfferCodeOneTimeUseCodeQuery,
 } from './resources/subscription-offer-code-one-time-use-codes.js';
+export type {
+  Build,
+  BuildResponse,
+  BuildsResponse,
+  ListBuildsQuery,
+  RetrieveBuildQuery,
+  ListBuildsForAppQuery,
+} from './resources/builds.js';
+export type {
+  InAppPurchaseV2,
+  InAppPurchaseV2Response,
+  InAppPurchasesV2Response,
+  RetrieveInAppPurchaseQuery,
+  ListInAppPurchasesForAppQuery,
+} from './resources/in-app-purchases.js';
+export type {
+  CustomerReview,
+  CustomerReviewResponse,
+  CustomerReviewsResponse,
+  RetrieveCustomerReviewQuery,
+  ListCustomerReviewsForAppQuery,
+} from './resources/customer-reviews.js';
+export type {
+  User,
+  UserResponse,
+  UsersResponse,
+  RetrieveUserQuery,
+  ListUsersQuery,
+} from './resources/users.js';
+export type {
+  BetaGroup,
+  BetaGroupResponse,
+  BetaGroupsResponse,
+  BetaTestersResponse,
+  BetaGroupBuildsResponse,
+  RetrieveBetaGroupQuery,
+  ListBetaGroupsQuery,
+  ListBetaGroupsForAppQuery,
+  ListBetaGroupTestersQuery,
+  ListBetaGroupBuildsQuery,
+} from './resources/beta-groups.js';
 
 /**
  * The full set of types generated from Apple's App Store Connect OpenAPI
