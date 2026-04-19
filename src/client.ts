@@ -1,6 +1,8 @@
 import { TokenProvider } from './auth.js';
 import { AppStoreConnectAPIError, type AppStoreConnectAPIErrorDetail } from './errors.js';
 import { Apps } from './resources/apps.js';
+import { FinanceReports } from './resources/finance-reports.js';
+import { SalesReports } from './resources/sales-reports.js';
 import { SubscriptionGroups } from './resources/subscription-groups.js';
 import { Subscriptions } from './resources/subscriptions.js';
 
@@ -157,6 +159,18 @@ export class AppStoreConnect {
    */
   readonly subscriptions: Subscriptions;
 
+  /**
+   * Operations on the `salesReports` resource — download gzipped TSV
+   * sales and trends reports for a vendor.
+   */
+  readonly salesReports: SalesReports;
+
+  /**
+   * Operations on the `financeReports` resource — download gzipped TSV
+   * financial payout reports for a vendor and region.
+   */
+  readonly financeReports: FinanceReports;
+
   /** Fully-qualified base URL including the `/v1` version segment. */
   private readonly baseUrl: string;
   /** Concrete `fetch` implementation used for every outbound request. */
@@ -180,6 +194,8 @@ export class AppStoreConnect {
     this.apps = new Apps(this);
     this.subscriptionGroups = new SubscriptionGroups(this);
     this.subscriptions = new Subscriptions(this);
+    this.salesReports = new SalesReports(this);
+    this.financeReports = new FinanceReports(this);
   }
 
   /**
@@ -211,6 +227,42 @@ export class AppStoreConnect {
     path: string,
     init?: { query?: QueryParams | undefined; body?: unknown },
   ): Promise<T> {
+    const response = await this.requestRaw(method, path, init);
+    if (response.status === 204) return undefined as T;
+    return (await response.json()) as T;
+  }
+
+  /**
+   * Issue a raw, authenticated request and return the unconsumed
+   * {@link Response} object.
+   *
+   * Use this when you need non-JSON handling — for example, Apple's sales
+   * and finance report endpoints return gzipped CSV (`application/a-gzip`),
+   * and some download endpoints stream binary data. The returned response
+   * is guaranteed to be 2xx (non-2xx responses raise
+   * {@link AppStoreConnectAPIError} before this method returns), so
+   * consumers can call `.blob()`, `.arrayBuffer()`, `.text()`, or consume
+   * the `.body` stream without re-checking `response.ok`.
+   *
+   * Shares the auth / URL building / query serialization / error-mapping
+   * pipeline with {@link AppStoreConnect#request}; the only difference is
+   * that the response body is not decoded as JSON.
+   *
+   * @param method - HTTP verb (`GET`, `POST`, `PATCH`, `DELETE`, ...).
+   * @param path - Path relative to the base URL, beginning with a slash and
+   *   including the API version segment (e.g. `"/v1/salesReports"`).
+   * @param init - Optional query parameters and request body. Same rules
+   *   as {@link AppStoreConnect#request}.
+   * @returns The unconsumed {@link Response} from the underlying `fetch`.
+   * @throws {@link AppStoreConnectAPIError} - When Apple returns a non-2xx
+   *   response; the thrown error carries the status code, Apple's
+   *   structured `errors[]` array, and the `x-apple-request-uuid`.
+   */
+  async requestRaw(
+    method: string,
+    path: string,
+    init?: { query?: QueryParams | undefined; body?: unknown },
+  ): Promise<Response> {
     const token = await this.tokenProvider.getToken();
     const url = new URL(this.baseUrl + path);
 
@@ -255,8 +307,7 @@ export class AppStoreConnect {
       );
     }
 
-    if (response.status === 204) return undefined as T;
-    return (await response.json()) as T;
+    return response;
   }
 
   /**

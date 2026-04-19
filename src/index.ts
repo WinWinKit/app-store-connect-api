@@ -53,6 +53,8 @@ export type {
   RetrieveSubscriptionQuery,
   ListSubscriptionPricesQuery,
 } from './resources/subscriptions.js';
+export type { DownloadSalesReportQuery } from './resources/sales-reports.js';
+export type { DownloadFinanceReportQuery } from './resources/finance-reports.js';
 
 /**
  * The full set of types generated from Apple's App Store Connect OpenAPI

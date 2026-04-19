@@ -12,6 +12,8 @@ describe('AppStoreConnect', () => {
     expect(asc.apps).toBeDefined();
     expect(asc.subscriptionGroups).toBeDefined();
     expect(asc.subscriptions).toBeDefined();
+    expect(asc.salesReports).toBeDefined();
+    expect(asc.financeReports).toBeDefined();
   });
 
   it('accepts credentials without issuerId (individual key)', () => {
@@ -22,6 +24,120 @@ describe('AppStoreConnect', () => {
     expect(asc.apps).toBeDefined();
     expect(asc.subscriptionGroups).toBeDefined();
     expect(asc.subscriptions).toBeDefined();
+    expect(asc.salesReports).toBeDefined();
+    expect(asc.financeReports).toBeDefined();
+  });
+});
+
+describe('AppStoreConnect report downloads', () => {
+  let privateKey: string;
+
+  beforeAll(async () => {
+    const { privateKey: pk } = await generateKeyPair('ES256', { extractable: true });
+    privateKey = await exportPKCS8(pk);
+  });
+
+  it('returns a Blob from salesReports.download and sends the expected filters', async () => {
+    let capturedUrl: URL | null = null;
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      fetch: async (input) => {
+        capturedUrl = new URL(input instanceof Request ? input.url : String(input));
+        return new Response(new Blob([new Uint8Array([0x1f, 0x8b, 0x08])]), {
+          status: 200,
+          headers: { 'content-type': 'application/a-gzip' },
+        });
+      },
+    });
+
+    const blob = await asc.salesReports.download({
+      'filter[vendorNumber]': ['12345678'],
+      'filter[reportType]': ['SALES'],
+      'filter[reportSubType]': ['SUMMARY'],
+      'filter[frequency]': ['DAILY'],
+      'filter[reportDate]': ['2026-04-01'],
+      'filter[version]': ['1_0'],
+    });
+
+    expect(blob).toBeInstanceOf(Blob);
+    expect(blob.size).toBeGreaterThan(0);
+    expect(capturedUrl).not.toBeNull();
+    expect(capturedUrl!.pathname).toBe('/v1/salesReports');
+    expect(capturedUrl!.searchParams.get('filter[vendorNumber]')).toBe('12345678');
+    expect(capturedUrl!.searchParams.get('filter[reportType]')).toBe('SALES');
+    expect(capturedUrl!.searchParams.get('filter[reportDate]')).toBe('2026-04-01');
+  });
+
+  it('returns a Blob from financeReports.download and sends the expected filters', async () => {
+    let capturedUrl: URL | null = null;
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      fetch: async (input) => {
+        capturedUrl = new URL(input instanceof Request ? input.url : String(input));
+        return new Response(new Blob([new Uint8Array([0x1f, 0x8b, 0x08])]), {
+          status: 200,
+          headers: { 'content-type': 'application/a-gzip' },
+        });
+      },
+    });
+
+    const blob = await asc.financeReports.download({
+      'filter[vendorNumber]': ['12345678'],
+      'filter[reportType]': ['FINANCIAL'],
+      'filter[regionCode]': ['US'],
+      'filter[reportDate]': ['2026-03'],
+    });
+
+    expect(blob).toBeInstanceOf(Blob);
+    expect(capturedUrl!.pathname).toBe('/v1/financeReports');
+    expect(capturedUrl!.searchParams.get('filter[regionCode]')).toBe('US');
+    expect(capturedUrl!.searchParams.get('filter[reportType]')).toBe('FINANCIAL');
+  });
+
+  it('throws AppStoreConnectAPIError on a non-2xx report response', async () => {
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      fetch: async () =>
+        new Response(
+          JSON.stringify({
+            errors: [
+              {
+                id: 'err-1',
+                status: '400',
+                code: 'PARAMETER_ERROR.INVALID',
+                title: 'A parameter has an invalid value',
+                detail: 'There is no report available for that date.',
+              },
+            ],
+          }),
+          {
+            status: 400,
+            headers: {
+              'content-type': 'application/json',
+              'x-apple-request-uuid': 'req-abc',
+            },
+          },
+        ),
+    });
+
+    await expect(
+      asc.salesReports.download({
+        'filter[vendorNumber]': ['12345678'],
+        'filter[reportType]': ['SALES'],
+        'filter[reportSubType]': ['SUMMARY'],
+        'filter[frequency]': ['DAILY'],
+      }),
+    ).rejects.toMatchObject({
+      name: 'AppStoreConnectAPIError',
+      status: 400,
+      requestId: 'req-abc',
+    });
   });
 });
 
