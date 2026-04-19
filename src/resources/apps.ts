@@ -59,6 +59,10 @@ export type AppResponse = components['schemas']['AppResponse'];
  * on your developer account — the parent record that owns builds, versions,
  * in-app purchases, subscriptions, beta groups, reviews, and sales reports.
  *
+ * Price-related operations live on dedicated resources:
+ * {@link AppPriceSchedules} for the paid-app price schedule and
+ * {@link AppPricePoints} for the canonical price catalog.
+ *
  * Instances are created by the {@link AppStoreConnect} constructor and
  * accessed via `asc.apps`. Do not construct this class directly.
  *

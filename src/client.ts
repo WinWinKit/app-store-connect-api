@@ -1,16 +1,22 @@
 import { TokenProvider } from './auth.js';
 import { AppStoreConnectAPIError, type AppStoreConnectAPIErrorDetail } from './errors.js';
+import { AppPricePoints } from './resources/app-price-points.js';
+import { AppPriceSchedules } from './resources/app-price-schedules.js';
 import { Apps } from './resources/apps.js';
 import { BetaGroups } from './resources/beta-groups.js';
 import { Builds } from './resources/builds.js';
 import { CustomerReviews } from './resources/customer-reviews.js';
 import { FinanceReports } from './resources/finance-reports.js';
+import { InAppPurchasePricePoints } from './resources/in-app-purchase-price-points.js';
+import { InAppPurchasePriceSchedules } from './resources/in-app-purchase-price-schedules.js';
 import { InAppPurchases } from './resources/in-app-purchases.js';
 import { SalesReports } from './resources/sales-reports.js';
 import { SubscriptionGroups } from './resources/subscription-groups.js';
 import { SubscriptionOfferCodeCustomCodes } from './resources/subscription-offer-code-custom-codes.js';
 import { SubscriptionOfferCodeOneTimeUseCodes } from './resources/subscription-offer-code-one-time-use-codes.js';
 import { SubscriptionOfferCodes } from './resources/subscription-offer-codes.js';
+import { SubscriptionPricePoints } from './resources/subscription-price-points.js';
+import { SubscriptionPrices } from './resources/subscription-prices.js';
 import { Subscriptions } from './resources/subscriptions.js';
 import { Users } from './resources/users.js';
 
@@ -371,6 +377,43 @@ export class AppStoreConnect {
    */
   readonly betaGroups: BetaGroups;
 
+  /**
+   * Operations on the `subscriptionPricePoints` resource — retrieve a
+   * single price point and list the catalog for a subscription.
+   */
+  readonly subscriptionPricePoints: SubscriptionPricePoints;
+
+  /**
+   * Operations on the `inAppPurchasePricePoints` resource — list the
+   * price catalog available to a given IAP.
+   */
+  readonly inAppPurchasePricePoints: InAppPurchasePricePoints;
+
+  /**
+   * Operations on the `appPricePoints` resource — list the price
+   * catalog available to a given paid app.
+   */
+  readonly appPricePoints: AppPricePoints;
+
+  /**
+   * Operations on the `subscriptionPrices` resource — create (schedule)
+   * and cancel price changes, and list a subscription's current
+   * price-schedule entries.
+   */
+  readonly subscriptionPrices: SubscriptionPrices;
+
+  /**
+   * Operations on the `inAppPurchasePriceSchedules` resource — retrieve
+   * an IAP's price schedule and replace it in full.
+   */
+  readonly inAppPurchasePriceSchedules: InAppPurchasePriceSchedules;
+
+  /**
+   * Operations on the `appPriceSchedules` resource — retrieve a paid
+   * app's price schedule and replace it in full.
+   */
+  readonly appPriceSchedules: AppPriceSchedules;
+
   /** Fully-qualified base URL including the `/v1` version segment. */
   private readonly baseUrl: string;
   /** Concrete `fetch` implementation used for every outbound request. */
@@ -410,6 +453,12 @@ export class AppStoreConnect {
     this.customerReviews = new CustomerReviews(this);
     this.users = new Users(this);
     this.betaGroups = new BetaGroups(this);
+    this.subscriptionPricePoints = new SubscriptionPricePoints(this);
+    this.inAppPurchasePricePoints = new InAppPurchasePricePoints(this);
+    this.appPricePoints = new AppPricePoints(this);
+    this.subscriptionPrices = new SubscriptionPrices(this);
+    this.inAppPurchasePriceSchedules = new InAppPurchasePriceSchedules(this);
+    this.appPriceSchedules = new AppPriceSchedules(this);
   }
 
   /**

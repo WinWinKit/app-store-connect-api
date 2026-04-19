@@ -46,6 +46,10 @@ export type ListInAppPurchasesForAppQuery =
  * deprecated v1 endpoints. Auto-renewable subscriptions live on the
  * separate {@link Subscriptions} resource.
  *
+ * Price-related operations live on dedicated resources:
+ * {@link InAppPurchasePriceSchedules} for full schedule replacement and
+ * {@link InAppPurchasePricePoints} for the canonical price catalog.
+ *
  * Instances are created by the {@link AppStoreConnect} constructor and
  * accessed via `asc.inAppPurchases`. Do not construct this class directly.
  *

@@ -22,6 +22,12 @@ describe('AppStoreConnect', () => {
     expect(asc.customerReviews).toBeDefined();
     expect(asc.users).toBeDefined();
     expect(asc.betaGroups).toBeDefined();
+    expect(asc.subscriptionPricePoints).toBeDefined();
+    expect(asc.inAppPurchasePricePoints).toBeDefined();
+    expect(asc.appPricePoints).toBeDefined();
+    expect(asc.subscriptionPrices).toBeDefined();
+    expect(asc.inAppPurchasePriceSchedules).toBeDefined();
+    expect(asc.appPriceSchedules).toBeDefined();
   });
 
   it('accepts credentials without issuerId (individual key)', () => {
@@ -42,6 +48,12 @@ describe('AppStoreConnect', () => {
     expect(asc.customerReviews).toBeDefined();
     expect(asc.users).toBeDefined();
     expect(asc.betaGroups).toBeDefined();
+    expect(asc.subscriptionPricePoints).toBeDefined();
+    expect(asc.inAppPurchasePricePoints).toBeDefined();
+    expect(asc.appPricePoints).toBeDefined();
+    expect(asc.subscriptionPrices).toBeDefined();
+    expect(asc.inAppPurchasePriceSchedules).toBeDefined();
+    expect(asc.appPriceSchedules).toBeDefined();
   });
 });
 
@@ -518,14 +530,12 @@ describe('AppStoreConnect pagination', () => {
     await asc.subscriptionGroups.listForApp('app-9');
     await asc.subscriptionGroups.listSubscriptions('grp-1');
     await asc.subscriptions.retrieve('sub-7');
-    await asc.subscriptions.listPrices('sub-7');
 
     expect(paths).toEqual([
       '/v1/subscriptionGroups/grp-1',
       '/v1/apps/app-9/subscriptionGroups',
       '/v1/subscriptionGroups/grp-1/subscriptions',
       '/v1/subscriptions/sub-7',
-      '/v1/subscriptions/sub-7/prices',
     ]);
   });
 
@@ -562,6 +572,71 @@ describe('AppStoreConnect pagination', () => {
       '/v1/subscriptionOfferCodeCustomCodes/cc-1',
       '/v1/subscriptionOfferCodeOneTimeUseCodes/otu-1',
     ]);
+  });
+
+  it('hits the expected paths for price management endpoints', async () => {
+    const calls: Array<{ method: string; path: string; body: string | null }> = [];
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      retry: false,
+      fetch: async (input, init) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        const body = init?.body == null ? null : String(init.body);
+        calls.push({
+          method: (init?.method ?? 'GET').toUpperCase(),
+          path: url.pathname,
+          body,
+        });
+        return new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    });
+
+    // Subscription prices
+    await asc.subscriptionPrices.create({ data: { type: 'subscriptionPrices' } } as never);
+    await asc.subscriptionPrices.cancel('price-1');
+    await asc.subscriptionPrices.listForSubscription('sub-7');
+    await asc.subscriptionPricePoints.listForSubscription('sub-7');
+    await asc.subscriptionPricePoints.retrieve('spp-1');
+
+    // IAP price schedules
+    await asc.inAppPurchasePriceSchedules.replace({
+      data: { type: 'inAppPurchasePriceSchedules' },
+    } as never);
+    await asc.inAppPurchasePriceSchedules.retrieve('ips-1');
+    await asc.inAppPurchasePriceSchedules.retrieveForIap('iap-1');
+    await asc.inAppPurchasePricePoints.listForIap('iap-1');
+
+    // App price schedules
+    await asc.appPriceSchedules.replace({ data: { type: 'appPriceSchedules' } } as never);
+    await asc.appPriceSchedules.retrieve('aps-1');
+    await asc.appPriceSchedules.retrieveForApp('app-9');
+    await asc.appPricePoints.listForApp('app-9');
+
+    expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual([
+      'POST /v1/subscriptionPrices',
+      'DELETE /v1/subscriptionPrices/price-1',
+      'GET /v1/subscriptions/sub-7/prices',
+      'GET /v1/subscriptions/sub-7/pricePoints',
+      'GET /v1/subscriptionPricePoints/spp-1',
+      'POST /v1/inAppPurchasePriceSchedules',
+      'GET /v1/inAppPurchasePriceSchedules/ips-1',
+      'GET /v2/inAppPurchases/iap-1/iapPriceSchedule',
+      'GET /v2/inAppPurchases/iap-1/pricePoints',
+      'POST /v1/appPriceSchedules',
+      'GET /v1/appPriceSchedules/aps-1',
+      'GET /v1/apps/app-9/appPriceSchedule',
+      'GET /v1/apps/app-9/appPricePoints',
+    ]);
+
+    // POST bodies should be JSON-serialized.
+    const subPost = calls.find((c) => c.path === '/v1/subscriptionPrices');
+    expect(subPost?.body).not.toBeNull();
+    expect(JSON.parse(subPost!.body!)).toMatchObject({ data: { type: 'subscriptionPrices' } });
   });
 
   it('hits the expected paths for builds, IAPs, reviews, users, beta groups', async () => {

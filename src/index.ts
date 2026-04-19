@@ -38,6 +38,17 @@ export type {
   AppResponse,
 } from './resources/apps.js';
 export type {
+  AppPricePointV3,
+  AppPricePointsV3Response,
+  ListAppPricePointsForAppQuery,
+} from './resources/app-price-points.js';
+export type {
+  AppPriceScheduleResponse,
+  ReplaceAppPriceScheduleBody,
+  RetrieveAppPriceScheduleQuery,
+  RetrieveAppPriceScheduleForAppQuery,
+} from './resources/app-price-schedules.js';
+export type {
   SubscriptionGroup,
   SubscriptionGroupResponse,
   SubscriptionGroupsResponse,
@@ -49,11 +60,22 @@ export type {
 export type {
   Subscription,
   SubscriptionResponse,
-  SubscriptionPrice,
-  SubscriptionPricesResponse,
   RetrieveSubscriptionQuery,
-  ListSubscriptionPricesQuery,
 } from './resources/subscriptions.js';
+export type {
+  SubscriptionPrice,
+  SubscriptionPriceResponse,
+  SubscriptionPricesResponse,
+  CreateSubscriptionPriceBody,
+  ListSubscriptionPricesForSubscriptionQuery,
+} from './resources/subscription-prices.js';
+export type {
+  SubscriptionPricePoint,
+  SubscriptionPricePointResponse,
+  SubscriptionPricePointsResponse,
+  RetrieveSubscriptionPricePointQuery,
+  ListSubscriptionPricePointsForSubscriptionQuery,
+} from './resources/subscription-price-points.js';
 export type { DownloadSalesReportQuery } from './resources/sales-reports.js';
 export type { DownloadFinanceReportQuery } from './resources/finance-reports.js';
 export type {
@@ -94,6 +116,17 @@ export type {
   RetrieveInAppPurchaseQuery,
   ListInAppPurchasesForAppQuery,
 } from './resources/in-app-purchases.js';
+export type {
+  InAppPurchasePricePoint,
+  InAppPurchasePricePointsResponse,
+  ListInAppPurchasePricePointsForIapQuery,
+} from './resources/in-app-purchase-price-points.js';
+export type {
+  InAppPurchasePriceScheduleResponse,
+  ReplaceInAppPurchasePriceScheduleBody,
+  RetrieveInAppPurchasePriceScheduleQuery,
+  RetrieveInAppPurchasePriceScheduleForIapQuery,
+} from './resources/in-app-purchase-price-schedules.js';
 export type {
   CustomerReview,
   CustomerReviewResponse,
