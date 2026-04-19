@@ -60,7 +60,7 @@ export class TokenProvider {
   /**
    * Return a valid JWT, minting a new one if the cache is empty or stale.
    *
-   * Called by {@link AppStoreConnect.request} before every outbound request.
+   * Called by {@link AppStoreConnect#request} before every outbound request.
    * The issued JWT carries either an `iss` claim (team keys) or a
    * `sub: "user"` claim (individual keys) — see the class-level docs for the
    * selection rule.

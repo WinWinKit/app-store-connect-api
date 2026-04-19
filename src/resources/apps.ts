@@ -11,7 +11,7 @@ import type { components, operations } from '../generated/openapi.js';
 export type App = components['schemas']['App'];
 
 /**
- * Query parameters accepted by {@link Apps.list}.
+ * Query parameters accepted by {@link Apps#list}.
  *
  * Mirrors the `apps_getCollection` operation in Apple's OpenAPI spec —
  * supports filtering (`filter[bundleId]`, `filter[name]`, ...), sparse
@@ -23,7 +23,7 @@ export type App = components['schemas']['App'];
 export type ListAppsQuery = operations['apps_getCollection']['parameters']['query'];
 
 /**
- * Query parameters accepted by {@link Apps.retrieve}.
+ * Query parameters accepted by {@link Apps#retrieve}.
  *
  * Mirrors the `apps_getInstance` operation in Apple's OpenAPI spec —
  * supports sparse fieldsets (`fields[apps]`, ...) and relationship
@@ -34,7 +34,7 @@ export type ListAppsQuery = operations['apps_getCollection']['parameters']['quer
 export type RetrieveAppQuery = operations['apps_getInstance']['parameters']['query'];
 
 /**
- * JSON:API response returned by {@link Apps.list}.
+ * JSON:API response returned by {@link Apps#list}.
  *
  * Contains the primary `data` array (each element is a JSON:API resource
  * envelope around an app), plus pagination `links` and optional `meta`
@@ -44,7 +44,7 @@ export type RetrieveAppQuery = operations['apps_getInstance']['parameters']['que
 export type AppsResponse = components['schemas']['AppsResponse'];
 
 /**
- * JSON:API response returned by {@link Apps.retrieve}.
+ * JSON:API response returned by {@link Apps#retrieve}.
  *
  * Contains a single `data` element (the JSON:API resource envelope around
  * the requested app) and, if `include` was used, an `included` array of
@@ -160,10 +160,8 @@ export class Apps {
    * @see https://developer.apple.com/documentation/appstoreconnectapi/read-app-information
    */
   async retrieve(id: string, query?: RetrieveAppQuery): Promise<AppResponse> {
-    return this.client.request<AppResponse>(
-      'GET',
-      `/v1/apps/${encodeURIComponent(id)}`,
-      { query: query as QueryParams | undefined },
-    );
+    return this.client.request<AppResponse>('GET', `/v1/apps/${encodeURIComponent(id)}`, {
+      query: query as QueryParams | undefined,
+    });
   }
 }

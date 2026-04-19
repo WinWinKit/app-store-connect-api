@@ -41,7 +41,7 @@ export type {
  * The full set of types generated from Apple's App Store Connect OpenAPI
  * specification (version 4.3). Re-exported so consumers can reference raw
  * schema types (e.g. `components['schemas']['App']`) when calling
- * {@link AppStoreConnect.request} directly against an endpoint that this
+ * {@link AppStoreConnect#request} directly against an endpoint that this
  * library does not yet wrap with a typed resource method.
  *
  * Regenerate this module with `pnpm gen` whenever Apple bumps the spec.

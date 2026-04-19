@@ -19,7 +19,7 @@ export type QueryValue =
   | undefined;
 
 /**
- * Query parameters accepted by {@link AppStoreConnect.request}.
+ * Query parameters accepted by {@link AppStoreConnect#request}.
  *
  * Keys are parameter names exactly as Apple documents them (e.g.
  * `"filter[bundleId]"`, `"fields[apps]"`). Values are either a single
@@ -134,9 +134,9 @@ const DEFAULT_BASE_URL = 'https://api.appstoreconnect.apple.com';
  * const app = await asc.apps.retrieve('1234567890');
  * ```
  *
- * Each resource namespace (e.g. {@link AppStoreConnect.apps}) exposes
+ * Each resource namespace (e.g. {@link AppStoreConnect#apps}) exposes
  * strongly-typed methods for a specific Apple resource. Use
- * {@link AppStoreConnect.request} directly only when you need to call an
+ * {@link AppStoreConnect#request} directly only when you need to call an
  * endpoint that doesn't yet have a typed resource wrapper.
  */
 export class AppStoreConnect {
@@ -261,7 +261,7 @@ export class AppStoreConnect {
    *   envelope (`{ data, links, meta? }`). Pass the generated response type
    *   from {@link operations} or {@link components}, e.g.
    *   `components['schemas']['AppsResponse']`.
-   * @param path - Starting path, same rules as {@link AppStoreConnect.request}
+   * @param path - Starting path, same rules as {@link AppStoreConnect#request}
    *   (`"/v1/apps"`, etc.).
    * @param query - Optional query parameters for the first page. Subsequent
    *   pages use the `links.next` URL verbatim, so Apple-provided cursor and
