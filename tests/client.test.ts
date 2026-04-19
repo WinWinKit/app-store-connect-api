@@ -14,6 +14,9 @@ describe('AppStoreConnect', () => {
     expect(asc.subscriptions).toBeDefined();
     expect(asc.salesReports).toBeDefined();
     expect(asc.financeReports).toBeDefined();
+    expect(asc.subscriptionOfferCodes).toBeDefined();
+    expect(asc.subscriptionOfferCodeCustomCodes).toBeDefined();
+    expect(asc.subscriptionOfferCodeOneTimeUseCodes).toBeDefined();
   });
 
   it('accepts credentials without issuerId (individual key)', () => {
@@ -26,6 +29,9 @@ describe('AppStoreConnect', () => {
     expect(asc.subscriptions).toBeDefined();
     expect(asc.salesReports).toBeDefined();
     expect(asc.financeReports).toBeDefined();
+    expect(asc.subscriptionOfferCodes).toBeDefined();
+    expect(asc.subscriptionOfferCodeCustomCodes).toBeDefined();
+    expect(asc.subscriptionOfferCodeOneTimeUseCodes).toBeDefined();
   });
 });
 
@@ -304,6 +310,63 @@ describe('AppStoreConnect pagination', () => {
       '/v1/subscriptions/sub-7',
       '/v1/subscriptions/sub-7/prices',
     ]);
+  });
+
+  it('hits the expected paths for subscription offer code resources', async () => {
+    const paths: string[] = [];
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      fetch: async (input) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        paths.push(url.pathname);
+        return new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    });
+
+    await asc.subscriptionOfferCodes.retrieve('oc-1');
+    await asc.subscriptionOfferCodes.listForSubscription('sub-7');
+    await asc.subscriptionOfferCodes.listPrices('oc-1');
+    await asc.subscriptionOfferCodes.listCustomCodes('oc-1');
+    await asc.subscriptionOfferCodes.listOneTimeUseCodes('oc-1');
+    await asc.subscriptionOfferCodeCustomCodes.retrieve('cc-1');
+    await asc.subscriptionOfferCodeOneTimeUseCodes.retrieve('otu-1');
+
+    expect(paths).toEqual([
+      '/v1/subscriptionOfferCodes/oc-1',
+      '/v1/subscriptions/sub-7/offerCodes',
+      '/v1/subscriptionOfferCodes/oc-1/prices',
+      '/v1/subscriptionOfferCodes/oc-1/customCodes',
+      '/v1/subscriptionOfferCodes/oc-1/oneTimeUseCodes',
+      '/v1/subscriptionOfferCodeCustomCodes/cc-1',
+      '/v1/subscriptionOfferCodeOneTimeUseCodes/otu-1',
+    ]);
+  });
+
+  it('retrieves one-time-use-code values as CSV text', async () => {
+    let capturedUrl: URL | null = null;
+    const csv = 'code\nABCD-EFGH-1234\nWXYZ-5678-QRST\n';
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      fetch: async (input) => {
+        capturedUrl = new URL(input instanceof Request ? input.url : String(input));
+        return new Response(csv, {
+          status: 200,
+          headers: { 'content-type': 'text/csv' },
+        });
+      },
+    });
+
+    const values = await asc.subscriptionOfferCodeOneTimeUseCodes.retrieveValues('otu-42');
+
+    expect(values).toBe(csv);
+    expect(capturedUrl!.pathname).toBe('/v1/subscriptionOfferCodeOneTimeUseCodes/otu-42/values');
   });
 
   it('stops early when the consumer breaks out of the iterator', async () => {

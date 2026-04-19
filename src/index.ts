@@ -55,6 +55,29 @@ export type {
 } from './resources/subscriptions.js';
 export type { DownloadSalesReportQuery } from './resources/sales-reports.js';
 export type { DownloadFinanceReportQuery } from './resources/finance-reports.js';
+export type {
+  SubscriptionOfferCode,
+  SubscriptionOfferCodeResponse,
+  SubscriptionOfferCodesResponse,
+  SubscriptionOfferCodePricesResponse,
+  SubscriptionOfferCodeCustomCodesResponse,
+  SubscriptionOfferCodeOneTimeUseCodesResponse,
+  RetrieveSubscriptionOfferCodeQuery,
+  ListSubscriptionOfferCodesForSubscriptionQuery,
+  ListSubscriptionOfferCodePricesQuery,
+  ListSubscriptionOfferCodeCustomCodesQuery,
+  ListSubscriptionOfferCodeOneTimeUseCodesQuery,
+} from './resources/subscription-offer-codes.js';
+export type {
+  SubscriptionOfferCodeCustomCode,
+  SubscriptionOfferCodeCustomCodeResponse,
+  RetrieveSubscriptionOfferCodeCustomCodeQuery,
+} from './resources/subscription-offer-code-custom-codes.js';
+export type {
+  SubscriptionOfferCodeOneTimeUseCode,
+  SubscriptionOfferCodeOneTimeUseCodeResponse,
+  RetrieveSubscriptionOfferCodeOneTimeUseCodeQuery,
+} from './resources/subscription-offer-code-one-time-use-codes.js';
 
 /**
  * The full set of types generated from Apple's App Store Connect OpenAPI

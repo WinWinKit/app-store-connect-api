@@ -4,6 +4,9 @@ import { Apps } from './resources/apps.js';
 import { FinanceReports } from './resources/finance-reports.js';
 import { SalesReports } from './resources/sales-reports.js';
 import { SubscriptionGroups } from './resources/subscription-groups.js';
+import { SubscriptionOfferCodeCustomCodes } from './resources/subscription-offer-code-custom-codes.js';
+import { SubscriptionOfferCodeOneTimeUseCodes } from './resources/subscription-offer-code-one-time-use-codes.js';
+import { SubscriptionOfferCodes } from './resources/subscription-offer-codes.js';
 import { Subscriptions } from './resources/subscriptions.js';
 
 /**
@@ -171,6 +174,26 @@ export class AppStoreConnect {
    */
   readonly financeReports: FinanceReports;
 
+  /**
+   * Operations on the `subscriptionOfferCodes` resource — retrieve an
+   * offer code, list offer codes for a subscription, list an offer
+   * code's prices / custom codes / one-time-use-code batches.
+   */
+  readonly subscriptionOfferCodes: SubscriptionOfferCodes;
+
+  /**
+   * Operations on the `subscriptionOfferCodeCustomCodes` resource —
+   * retrieve a developer-defined custom code attached to an offer code.
+   */
+  readonly subscriptionOfferCodeCustomCodes: SubscriptionOfferCodeCustomCodes;
+
+  /**
+   * Operations on the `subscriptionOfferCodeOneTimeUseCodes` resource —
+   * retrieve a one-time-use-code batch and download its CSV of
+   * single-redemption code strings.
+   */
+  readonly subscriptionOfferCodeOneTimeUseCodes: SubscriptionOfferCodeOneTimeUseCodes;
+
   /** Fully-qualified base URL including the `/v1` version segment. */
   private readonly baseUrl: string;
   /** Concrete `fetch` implementation used for every outbound request. */
@@ -196,6 +219,9 @@ export class AppStoreConnect {
     this.subscriptions = new Subscriptions(this);
     this.salesReports = new SalesReports(this);
     this.financeReports = new FinanceReports(this);
+    this.subscriptionOfferCodes = new SubscriptionOfferCodes(this);
+    this.subscriptionOfferCodeCustomCodes = new SubscriptionOfferCodeCustomCodes(this);
+    this.subscriptionOfferCodeOneTimeUseCodes = new SubscriptionOfferCodeOneTimeUseCodes(this);
   }
 
   /**
