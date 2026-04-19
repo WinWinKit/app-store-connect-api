@@ -48,6 +48,7 @@
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "gen": "node scripts/gen.mjs",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
@@ -55,6 +56,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
+    "adm-zip": "^0.5.17",
+    "openapi-typescript": "^7.13.0",
     "prettier": "^3.3.3",
     "tsup": "^8.3.5",
     "typescript": "^5.6.3",
