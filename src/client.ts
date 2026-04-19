@@ -242,4 +242,46 @@ export class AppStoreConnect {
     if (response.status === 204) return undefined as T;
     return (await response.json()) as T;
   }
+
+  /**
+   * Iterate every page of a paginated App Store Connect collection endpoint.
+   *
+   * Apple uses JSON:API cursor pagination: each response carries a
+   * `links.next` URL pointing at the next page when more results exist. This
+   * generator yields the full typed page objects one at a time, fetching the
+   * next page only when the caller advances the iterator — so breaking out
+   * of the loop early is free.
+   *
+   * Resource classes use this under the hood to implement their
+   * `listAllPages()` / `listAll()` helpers; call it directly only when
+   * paging through a collection endpoint that does not yet have a typed
+   * resource wrapper.
+   *
+   * @typeParam T - Typed page shape, constrained to the JSON:API collection
+   *   envelope (`{ data, links, meta? }`). Pass the generated response type
+   *   from {@link operations} or {@link components}, e.g.
+   *   `components['schemas']['AppsResponse']`.
+   * @param path - Starting path, same rules as {@link AppStoreConnect.request}
+   *   (`"/v1/apps"`, etc.).
+   * @param query - Optional query parameters for the first page. Subsequent
+   *   pages use the `links.next` URL verbatim, so Apple-provided cursor and
+   *   pagination state carry over automatically.
+   * @yields Each successive page response, starting with the first.
+   */
+  async *paginate<T extends { data: readonly unknown[]; links: { next?: string | undefined } }>(
+    path: string,
+    query?: QueryParams | undefined,
+  ): AsyncGenerator<T, void, void> {
+    let page = await this.request<T>('GET', path, query ? { query } : undefined);
+    yield page;
+
+    while (page.links.next) {
+      // `links.next` is a fully-qualified URL from Apple, including any
+      // opaque cursor parameters. Strip the origin (it must match ours or
+      // Apple's override) and reuse just the path + query.
+      const nextUrl = new URL(page.links.next);
+      page = await this.request<T>('GET', nextUrl.pathname + nextUrl.search);
+      yield page;
+    }
+  }
 }

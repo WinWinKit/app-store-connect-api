@@ -2,6 +2,15 @@ import type { AppStoreConnect, QueryParams } from '../client.js';
 import type { components, operations } from '../generated/openapi.js';
 
 /**
+ * A single app resource, as it appears inside
+ * {@link AppsResponse.data} and {@link AppResponse.data}.
+ *
+ * Carries the JSON:API envelope (`id`, `type`, `attributes`, `relationships`)
+ * for one App Store Connect app.
+ */
+export type App = components['schemas']['App'];
+
+/**
  * Query parameters accepted by {@link Apps.list}.
  *
  * Mirrors the `apps_getCollection` operation in Apple's OpenAPI spec —
@@ -70,9 +79,9 @@ export class Apps {
    * typed end-to-end from the OpenAPI spec. Returns the raw JSON:API
    * envelope; unwrap `.data` to iterate the apps themselves.
    *
-   * Pagination is cursor-based via `query.cursor` plus `response.links.next`;
-   * a higher-level auto-paginating iterator is planned but not yet
-   * implemented.
+   * Returns a single page. To iterate every page automatically, use
+   * {@link listAllPages} (for page-level access) or {@link listAll} (for
+   * item-level iteration) instead of threading cursors by hand.
    *
    * @param query - Optional filters, fieldsets, sort, pagination, and
    *   includes. See {@link ListAppsQuery} for the full shape.
@@ -84,6 +93,54 @@ export class Apps {
     return this.client.request<AppsResponse>('GET', '/v1/apps', {
       query: query as QueryParams | undefined,
     });
+  }
+
+  /**
+   * Iterate every page of the apps collection, auto-following `links.next`.
+   *
+   * Prefer this over calling {@link list} in a loop — it carries Apple's
+   * opaque cursor from one page to the next automatically and lazily fetches
+   * only as far as the caller consumes the iterator. Yields full page
+   * responses so consumers can access `meta.paging`, `included`, and
+   * `links` per page.
+   *
+   * ```ts
+   * for await (const page of asc.apps.listAllPages({ limit: 200 })) {
+   *   console.log(`got ${page.data.length} apps in this page`);
+   * }
+   * ```
+   *
+   * @param query - Same shape as {@link list}. Re-used only for the first
+   *   request; subsequent requests reuse the parameters Apple embeds in
+   *   `links.next`.
+   * @yields Each page of `AppsResponse`, starting with the first.
+   */
+  async *listAllPages(query?: ListAppsQuery): AsyncGenerator<AppsResponse, void, void> {
+    yield* this.client.paginate<AppsResponse>('/v1/apps', query as QueryParams | undefined);
+  }
+
+  /**
+   * Iterate every app across every page, auto-following `links.next`.
+   *
+   * Thin item-level convenience on top of {@link listAllPages} — yields
+   * individual {@link App} objects from each page's `data` array. Drop down
+   * to {@link listAllPages} when you need access to per-page metadata
+   * (`meta.paging`, `included`, `links`).
+   *
+   * ```ts
+   * for await (const app of asc.apps.listAll({ limit: 200 })) {
+   *   console.log(app.attributes?.bundleId);
+   * }
+   * ```
+   *
+   * @param query - Same shape as {@link list}. See {@link listAllPages} for
+   *   how it is applied across pages.
+   * @yields Each {@link App}, in the order Apple returns them.
+   */
+  async *listAll(query?: ListAppsQuery): AsyncGenerator<App, void, void> {
+    for await (const page of this.listAllPages(query)) {
+      yield* page.data;
+    }
   }
 
   /**

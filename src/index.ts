@@ -30,6 +30,7 @@ export type {
  * typed queries through helper functions.
  */
 export type {
+  App,
   ListAppsQuery,
   RetrieveAppQuery,
   AppsResponse,
