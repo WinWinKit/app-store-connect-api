@@ -1,0 +1,64 @@
+{
+  "name": "@winwinkit/app-store-connect-api",
+  "version": "0.0.0",
+  "description": "TypeScript client for the App Store Connect API with a resource-oriented, fluent interface.",
+  "license": "MIT",
+  "author": "WinWinKit",
+  "homepage": "https://github.com/WinWinKit/app-store-connect-api",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WinWinKit/app-store-connect-api.git"
+  },
+  "bugs": {
+    "url": "https://github.com/WinWinKit/app-store-connect-api/issues"
+  },
+  "keywords": [
+    "app-store-connect",
+    "apple",
+    "api",
+    "typescript",
+    "ios",
+    "macos",
+    "winwinkit"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "jose": "^5.9.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "prettier": "^3.3.3",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  },
+  "packageManager": "pnpm@9.10.0"
+}
