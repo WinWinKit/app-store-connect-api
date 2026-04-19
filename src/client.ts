@@ -1,6 +1,8 @@
 import { TokenProvider } from './auth.js';
 import { AppStoreConnectAPIError, type AppStoreConnectAPIErrorDetail } from './errors.js';
 import { Apps } from './resources/apps.js';
+import { SubscriptionGroups } from './resources/subscription-groups.js';
+import { Subscriptions } from './resources/subscriptions.js';
 
 /**
  * A single value accepted inside {@link QueryParams}.
@@ -143,6 +145,18 @@ export class AppStoreConnect {
   /** Operations on the `apps` resource (list, retrieve, ...). */
   readonly apps: Apps;
 
+  /**
+   * Operations on the `subscriptionGroups` resource — retrieve a group,
+   * list groups for an app, list subscriptions within a group.
+   */
+  readonly subscriptionGroups: SubscriptionGroups;
+
+  /**
+   * Operations on the `subscriptions` resource — retrieve a single
+   * subscription and list its price schedule.
+   */
+  readonly subscriptions: Subscriptions;
+
   /** Fully-qualified base URL including the `/v1` version segment. */
   private readonly baseUrl: string;
   /** Concrete `fetch` implementation used for every outbound request. */
@@ -164,6 +178,8 @@ export class AppStoreConnect {
     this.userAgent = options.userAgent ?? '@winwinkit/app-store-connect-api';
     this.tokenProvider = new TokenProvider(options);
     this.apps = new Apps(this);
+    this.subscriptionGroups = new SubscriptionGroups(this);
+    this.subscriptions = new Subscriptions(this);
   }
 
   /**

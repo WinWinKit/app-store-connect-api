@@ -36,6 +36,23 @@ export type {
   AppsResponse,
   AppResponse,
 } from './resources/apps.js';
+export type {
+  SubscriptionGroup,
+  SubscriptionGroupResponse,
+  SubscriptionGroupsResponse,
+  SubscriptionsResponse,
+  RetrieveSubscriptionGroupQuery,
+  ListSubscriptionGroupsForAppQuery,
+  ListSubscriptionsForGroupQuery,
+} from './resources/subscription-groups.js';
+export type {
+  Subscription,
+  SubscriptionResponse,
+  SubscriptionPrice,
+  SubscriptionPricesResponse,
+  RetrieveSubscriptionQuery,
+  ListSubscriptionPricesQuery,
+} from './resources/subscriptions.js';
 
 /**
  * The full set of types generated from Apple's App Store Connect OpenAPI

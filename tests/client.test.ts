@@ -10,6 +10,8 @@ describe('AppStoreConnect', () => {
       privateKey: '-----BEGIN PRIVATE KEY-----\n-----END PRIVATE KEY-----',
     });
     expect(asc.apps).toBeDefined();
+    expect(asc.subscriptionGroups).toBeDefined();
+    expect(asc.subscriptions).toBeDefined();
   });
 
   it('accepts credentials without issuerId (individual key)', () => {
@@ -18,6 +20,8 @@ describe('AppStoreConnect', () => {
       privateKey: '-----BEGIN PRIVATE KEY-----\n-----END PRIVATE KEY-----',
     });
     expect(asc.apps).toBeDefined();
+    expect(asc.subscriptionGroups).toBeDefined();
+    expect(asc.subscriptions).toBeDefined();
   });
 });
 
@@ -153,6 +157,37 @@ describe('AppStoreConnect pagination', () => {
     expect(new URL(calls[0]!).searchParams.get('limit')).toBe('2');
     expect(new URL(calls[1]!).searchParams.get('cursor')).toBe('p2');
     expect(new URL(calls[2]!).searchParams.get('cursor')).toBe('p3');
+  });
+
+  it('hits the expected paths for subscription resources', async () => {
+    const paths: string[] = [];
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      fetch: async (input) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        paths.push(url.pathname);
+        return new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    });
+
+    await asc.subscriptionGroups.retrieve('grp-1');
+    await asc.subscriptionGroups.listForApp('app-9');
+    await asc.subscriptionGroups.listSubscriptions('grp-1');
+    await asc.subscriptions.retrieve('sub-7');
+    await asc.subscriptions.listPrices('sub-7');
+
+    expect(paths).toEqual([
+      '/v1/subscriptionGroups/grp-1',
+      '/v1/apps/app-9/subscriptionGroups',
+      '/v1/subscriptionGroups/grp-1/subscriptions',
+      '/v1/subscriptions/sub-7',
+      '/v1/subscriptions/sub-7/prices',
+    ]);
   });
 
   it('stops early when the consumer breaks out of the iterator', async () => {
