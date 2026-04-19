@@ -45,6 +45,213 @@ describe('AppStoreConnect', () => {
   });
 });
 
+describe('AppStoreConnect request plumbing', () => {
+  let privateKey: string;
+
+  beforeAll(async () => {
+    const { privateKey: pk } = await generateKeyPair('ES256', { extractable: true });
+    privateKey = await exportPKCS8(pk);
+  });
+
+  it('sends Authorization: Bearer <jwt> and a default User-Agent', async () => {
+    let captured: Headers | null = null;
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      fetch: async (_url, init) => {
+        captured = new Headers(init?.headers);
+        return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+      },
+    });
+
+    await asc.apps.list();
+
+    expect(captured).not.toBeNull();
+    const auth = captured!.get('authorization');
+    expect(auth).toMatch(/^Bearer [\w-]+\.[\w-]+\.[\w-]+$/);
+    expect(captured!.get('user-agent')).toBe('@winwinkit/app-store-connect-api');
+  });
+
+  it('honors a custom User-Agent', async () => {
+    let captured: Headers | null = null;
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      userAgent: 'acme-uploader/1.2.3',
+      fetch: async (_url, init) => {
+        captured = new Headers(init?.headers);
+        return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+      },
+    });
+
+    await asc.apps.list();
+    expect(captured!.get('user-agent')).toBe('acme-uploader/1.2.3');
+  });
+
+  it('honors a custom baseUrl', async () => {
+    let capturedUrl: URL | null = null;
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      baseUrl: 'https://proxy.example.com',
+      fetch: async (input) => {
+        capturedUrl = new URL(input instanceof Request ? input.url : String(input));
+        return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+      },
+    });
+
+    await asc.apps.list();
+    expect(capturedUrl!.origin).toBe('https://proxy.example.com');
+    expect(capturedUrl!.pathname).toBe('/v1/apps');
+  });
+
+  it('returns undefined from request<T>() on a 204 No Content response', async () => {
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      fetch: async () => new Response(null, { status: 204 }),
+    });
+
+    const result = await asc.request('GET', '/v1/example');
+    expect(result).toBeUndefined();
+  });
+
+  it('JSON-serializes the request body and sets content-type', async () => {
+    let captured: { body: string | null; headers: Headers } | null = null;
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      fetch: async (_url, init) => {
+        captured = {
+          body: init?.body == null ? null : String(init.body),
+          headers: new Headers(init?.headers),
+        };
+        return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+      },
+    });
+
+    await asc.request('POST', '/v1/example', { body: { hello: 'world', count: 2 } });
+
+    expect(captured).not.toBeNull();
+    expect(captured!.headers.get('content-type')).toBe('application/json');
+    expect(JSON.parse(captured!.body!)).toEqual({ hello: 'world', count: 2 });
+  });
+
+  it('requestRaw() leaves the response body unconsumed for the caller', async () => {
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      fetch: async () =>
+        new Response('raw-payload', {
+          status: 200,
+          headers: { 'content-type': 'text/plain' },
+        }),
+    });
+
+    const response = await asc.requestRaw('GET', '/v1/example');
+    expect(response.bodyUsed).toBe(false);
+    expect(await response.text()).toBe('raw-payload');
+  });
+});
+
+describe('AppStoreConnect error mapping', () => {
+  let privateKey: string;
+
+  beforeAll(async () => {
+    const { privateKey: pk } = await generateKeyPair('ES256', { extractable: true });
+    privateKey = await exportPKCS8(pk);
+  });
+
+  it('captures status, errors[], and x-apple-request-uuid on non-2xx responses', async () => {
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      retry: false,
+      fetch: async () =>
+        new Response(
+          JSON.stringify({
+            errors: [
+              {
+                id: 'err-42',
+                status: '403',
+                code: 'FORBIDDEN_ERROR',
+                title: 'This request is forbidden.',
+                detail: 'Provided credentials are not permitted to access this resource.',
+                source: { pointer: '/data' },
+              },
+            ],
+          }),
+          {
+            status: 403,
+            headers: {
+              'content-type': 'application/json',
+              'x-apple-request-uuid': 'req-uuid-xyz',
+            },
+          },
+        ),
+    });
+
+    await expect(asc.apps.list()).rejects.toMatchObject({
+      name: 'AppStoreConnectAPIError',
+      status: 403,
+      requestId: 'req-uuid-xyz',
+      errors: [
+        expect.objectContaining({
+          code: 'FORBIDDEN_ERROR',
+          status: '403',
+          source: { pointer: '/data' },
+        }),
+      ],
+    });
+  });
+
+  it('falls back to empty errors[] when the response body is not JSON', async () => {
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      retry: false,
+      fetch: async () =>
+        new Response('<html>gateway error</html>', {
+          status: 502,
+          headers: { 'content-type': 'text/html' },
+        }),
+    });
+
+    await expect(asc.apps.list()).rejects.toMatchObject({
+      name: 'AppStoreConnectAPIError',
+      status: 502,
+      errors: [],
+    });
+  });
+
+  it('tolerates a missing x-apple-request-uuid header', async () => {
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      retry: false,
+      fetch: async () =>
+        new Response('{}', {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        }),
+    });
+
+    await expect(asc.apps.list()).rejects.toMatchObject({
+      status: 400,
+      requestId: undefined,
+    });
+  });
+});
+
 describe('AppStoreConnect report downloads', () => {
   let privateKey: string;
 
