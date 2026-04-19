@@ -406,6 +406,146 @@ describe('AppStoreConnect pagination', () => {
     ]);
   });
 
+  it('retries 429 on GET until success, honoring Retry-After: 0', async () => {
+    const attempts: number[] = [];
+    let call = 0;
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      retry: { maxAttempts: 4, baseDelayMs: 0, maxDelayMs: 0 },
+      fetch: async () => {
+        attempts.push(call);
+        call++;
+        if (call <= 2) {
+          return new Response('{"errors":[]}', {
+            status: 429,
+            headers: { 'content-type': 'application/json', 'retry-after': '0' },
+          });
+        }
+        return new Response(JSON.stringify({ data: [] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    });
+
+    const result = await asc.apps.list();
+    expect(attempts).toHaveLength(3);
+    expect((result as { data: unknown[] }).data).toEqual([]);
+  });
+
+  it('throws AppStoreConnectAPIError when retries are exhausted', async () => {
+    let call = 0;
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      retry: { maxAttempts: 3, baseDelayMs: 0, maxDelayMs: 0 },
+      fetch: async () => {
+        call++;
+        return new Response('{"errors":[]}', {
+          status: 503,
+          headers: { 'content-type': 'application/json', 'retry-after': '0' },
+        });
+      },
+    });
+
+    await expect(asc.apps.list()).rejects.toMatchObject({
+      name: 'AppStoreConnectAPIError',
+      status: 503,
+    });
+    expect(call).toBe(3);
+  });
+
+  it('does not retry non-idempotent methods on 5xx', async () => {
+    let call = 0;
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      retry: { maxAttempts: 4, baseDelayMs: 0, maxDelayMs: 0 },
+      fetch: async () => {
+        call++;
+        return new Response('{"errors":[]}', {
+          status: 500,
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    });
+
+    await expect(
+      asc.request('POST', '/v1/example', { body: { foo: 'bar' } }),
+    ).rejects.toMatchObject({ status: 500 });
+    expect(call).toBe(1);
+  });
+
+  it('does retry non-idempotent methods on 429', async () => {
+    let call = 0;
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      retry: { maxAttempts: 3, baseDelayMs: 0, maxDelayMs: 0 },
+      fetch: async () => {
+        call++;
+        if (call === 1) {
+          return new Response('{"errors":[]}', {
+            status: 429,
+            headers: { 'content-type': 'application/json', 'retry-after': '0' },
+          });
+        }
+        return new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    });
+
+    await asc.request('POST', '/v1/example', { body: { foo: 'bar' } });
+    expect(call).toBe(2);
+  });
+
+  it('does not retry ordinary 4xx responses', async () => {
+    let call = 0;
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      retry: { maxAttempts: 4, baseDelayMs: 0, maxDelayMs: 0 },
+      fetch: async () => {
+        call++;
+        return new Response('{"errors":[]}', {
+          status: 404,
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    });
+
+    await expect(asc.apps.retrieve('missing')).rejects.toMatchObject({ status: 404 });
+    expect(call).toBe(1);
+  });
+
+  it('disables retries when retry: false', async () => {
+    let call = 0;
+    const asc = new AppStoreConnect({
+      keyId: 'K',
+      issuerId: 'I',
+      privateKey,
+      retry: false,
+      fetch: async () => {
+        call++;
+        return new Response('{"errors":[]}', {
+          status: 429,
+          headers: { 'content-type': 'application/json', 'retry-after': '0' },
+        });
+      },
+    });
+
+    await expect(asc.apps.list()).rejects.toMatchObject({ status: 429 });
+    expect(call).toBe(1);
+  });
+
   it('retrieves one-time-use-code values as CSV text', async () => {
     let capturedUrl: URL | null = null;
     const csv = 'code\nABCD-EFGH-1234\nWXYZ-5678-QRST\n';

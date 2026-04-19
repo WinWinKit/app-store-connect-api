@@ -20,6 +20,7 @@ export type {
   AppStoreConnectCredentials,
   QueryParams,
   QueryValue,
+  RetryOptions,
 } from './client.js';
 
 /**

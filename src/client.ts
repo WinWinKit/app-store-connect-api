@@ -41,6 +41,137 @@ export type QueryValue =
 export type QueryParams = Record<string, QueryValue>;
 
 /**
+ * Options controlling automatic retry of transient failures.
+ *
+ * Passed to the client via {@link AppStoreConnectOptions.retry}. Retries
+ * are applied in {@link AppStoreConnect#requestRaw} (and therefore also
+ * {@link AppStoreConnect#request}) whenever the response indicates a
+ * transient failure and the HTTP method is safe to repeat:
+ *
+ * - **HTTP 429** ("Too Many Requests") — always retried when attempts
+ *   remain, since the server explicitly asserts the request was not
+ *   processed. The `Retry-After` response header is honored when present.
+ * - **HTTP 5xx** and network errors — retried only on idempotent methods
+ *   (`GET`, `HEAD`, `PUT`, `DELETE`, `OPTIONS`) to avoid the risk of
+ *   double-submitting a `POST`/`PATCH` the server may or may not have
+ *   processed.
+ *
+ * When a retry is scheduled without a `Retry-After` header, the delay is
+ * `random(0, min(baseDelayMs * 2^attempt, maxDelayMs))` (full-jitter
+ * exponential backoff).
+ */
+export interface RetryOptions {
+  /**
+   * Maximum total attempts per request, including the initial call.
+   *
+   * `1` disables retries entirely (same as passing `retry: false`). The
+   * default is `4` (one initial attempt plus up to three retries).
+   */
+  maxAttempts?: number;
+
+  /**
+   * Base delay in milliseconds for exponential backoff. The actual
+   * sleep between attempt `n` and `n+1` is drawn uniformly from
+   * `[0, min(baseDelayMs * 2^n, maxDelayMs)]`. Default: `1000`.
+   */
+  baseDelayMs?: number;
+
+  /**
+   * Upper bound in milliseconds on any single sleep between retry
+   * attempts. Also caps `Retry-After` values if the server returns an
+   * unusually large one. Default: `30000` (30 seconds).
+   */
+  maxDelayMs?: number;
+}
+
+/** HTTP methods considered idempotent by RFC 7231 — safe to retry on 5xx/network failures. */
+const IDEMPOTENT_METHODS = new Set(['GET', 'HEAD', 'PUT', 'DELETE', 'OPTIONS']);
+
+/** Defaults applied to any {@link RetryOptions} not explicitly overridden. */
+const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
+  maxAttempts: 4,
+  baseDelayMs: 1000,
+  maxDelayMs: 30_000,
+};
+
+/**
+ * Resolve with `void` after the given number of milliseconds.
+ *
+ * Exposed as a module-private helper so retry backoff can be cleanly
+ * stubbed or short-circuited in tests (callers can pass `baseDelayMs: 0`
+ * to eliminate real sleeps entirely).
+ */
+function sleep(ms: number): Promise<void> {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Parse an HTTP `Retry-After` header value into milliseconds.
+ *
+ * The header can be either a delta-seconds integer (per RFC 7231 §7.1.3)
+ * or an HTTP-date. Returns `null` if the header is missing or
+ * unparseable; callers fall back to exponential backoff in that case.
+ */
+function parseRetryAfterHeader(value: string | null): number | null {
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  const dateMs = Date.parse(value);
+  if (Number.isFinite(dateMs)) return Math.max(0, dateMs - Date.now());
+  return null;
+}
+
+/**
+ * Compute the sleep duration before the next retry attempt.
+ *
+ * When the response is present and carries a usable `Retry-After` header,
+ * that value is honored (clamped to `maxDelayMs`). Otherwise the delay is
+ * drawn uniformly from `[0, min(baseDelayMs * 2^attempt, maxDelayMs)]`
+ * (full-jitter exponential backoff).
+ *
+ * @param response - The non-2xx response being retried, or `null` for
+ *   network-level failures.
+ * @param attempt - Zero-based index of the attempt that just failed.
+ * @param options - Resolved retry configuration.
+ */
+function computeBackoffDelay(
+  response: Response | null,
+  attempt: number,
+  options: Required<RetryOptions>,
+): number {
+  if (response) {
+    const fromHeader = parseRetryAfterHeader(response.headers.get('retry-after'));
+    if (fromHeader !== null) return Math.min(fromHeader, options.maxDelayMs);
+  }
+  const expo = Math.min(options.baseDelayMs * 2 ** attempt, options.maxDelayMs);
+  return Math.floor(Math.random() * expo);
+}
+
+/**
+ * Build an {@link AppStoreConnectAPIError} from a non-2xx response,
+ * consuming the response body along the way. Used by
+ * {@link AppStoreConnect#requestRaw} once retry attempts are exhausted
+ * (or the failure is non-retriable).
+ */
+async function buildAPIErrorFromResponse(response: Response): Promise<AppStoreConnectAPIError> {
+  const requestId = response.headers.get('x-apple-request-uuid') ?? undefined;
+  let errors: AppStoreConnectAPIErrorDetail[] = [];
+  try {
+    const body = (await response.json()) as { errors?: AppStoreConnectAPIErrorDetail[] };
+    errors = body.errors ?? [];
+  } catch {
+    /* Response body was absent or not valid JSON; fall back to empty errors[]. */
+  }
+  return new AppStoreConnectAPIError(
+    `App Store Connect API request failed with status ${response.status}`,
+    response.status,
+    errors,
+    requestId,
+  );
+}
+
+/**
  * Credentials required to sign App Store Connect API requests.
  *
  * Obtain these from App Store Connect → Users and Access → Keys. Each key is
@@ -112,6 +243,16 @@ export interface AppStoreConnectOptions extends AppStoreConnectCredentials {
    * contacted about breaking changes.
    */
   userAgent?: string;
+
+  /**
+   * Automatic retry behavior for transient failures.
+   *
+   * Pass a partial {@link RetryOptions} object to override defaults, or
+   * `false` to disable retries entirely. When omitted, retries are enabled
+   * with the {@link DEFAULT_RETRY_OPTIONS} defaults — four total attempts,
+   * 1-second base delay, 30-second cap.
+   */
+  retry?: RetryOptions | false;
 }
 
 /**
@@ -238,6 +379,8 @@ export class AppStoreConnect {
   private readonly userAgent: string;
   /** Caches and refreshes the ES256 JWT used for authentication. */
   private readonly tokenProvider: TokenProvider;
+  /** Resolved retry configuration; `maxAttempts: 1` means retries are disabled. */
+  private readonly retryOptions: Required<RetryOptions>;
 
   /**
    * Construct a new client.
@@ -250,6 +393,10 @@ export class AppStoreConnect {
     this.fetchImpl = options.fetch ?? globalThis.fetch;
     this.userAgent = options.userAgent ?? '@winwinkit/app-store-connect-api';
     this.tokenProvider = new TokenProvider(options);
+    this.retryOptions =
+      options.retry === false
+        ? { ...DEFAULT_RETRY_OPTIONS, maxAttempts: 1 }
+        : { ...DEFAULT_RETRY_OPTIONS, ...options.retry };
     this.apps = new Apps(this);
     this.subscriptionGroups = new SubscriptionGroups(this);
     this.subscriptions = new Subscriptions(this);
@@ -330,51 +477,88 @@ export class AppStoreConnect {
     path: string,
     init?: { query?: QueryParams | undefined; body?: unknown },
   ): Promise<Response> {
-    const token = await this.tokenProvider.getToken();
-    const url = new URL(this.baseUrl + path);
+    const url = this.buildUrl(path, init?.query);
+    const verb = method.toUpperCase();
+    const idempotent = IDEMPOTENT_METHODS.has(verb);
+    const { maxAttempts } = this.retryOptions;
 
-    if (init?.query) {
-      for (const [key, value] of Object.entries(init.query)) {
-        if (value === undefined || value === null) continue;
-        if (Array.isArray(value)) {
-          if (value.length === 0) continue;
-          url.searchParams.set(key, value.join(','));
-        } else {
-          url.searchParams.set(key, String(value));
+    for (let attempt = 0; ; attempt++) {
+      let response: Response;
+      try {
+        response = await this.sendOnce(method, url, init?.body);
+      } catch (err) {
+        // Network-level failure (fetch rejected). Retry only on idempotent
+        // methods — we can't tell whether a POST/PATCH reached the server.
+        if (attempt + 1 < maxAttempts && idempotent) {
+          await sleep(computeBackoffDelay(null, attempt, this.retryOptions));
+          continue;
         }
+        throw err;
+      }
+
+      if (response.ok) return response;
+
+      // Non-2xx path. Retry policy:
+      //   - 429: always retry while attempts remain (safe for any method —
+      //     the server explicitly asserts the request was not processed).
+      //   - 5xx: retry only on idempotent methods.
+      //   - other 4xx: never retry.
+      const retriable =
+        attempt + 1 < maxAttempts &&
+        (response.status === 429 || (response.status >= 500 && idempotent));
+
+      if (retriable) {
+        // Consume the body so the underlying connection can be released
+        // before sleeping; ignore decode failures — the body may be empty
+        // or non-JSON.
+        response.body?.cancel().catch(() => {});
+        await sleep(computeBackoffDelay(response, attempt, this.retryOptions));
+        continue;
+      }
+
+      throw await buildAPIErrorFromResponse(response);
+    }
+  }
+
+  /**
+   * Build the full request URL by joining {@link baseUrl}, the given path,
+   * and any query parameters. See {@link QueryValue} for how each value
+   * type is serialized.
+   */
+  private buildUrl(path: string, query: QueryParams | undefined): URL {
+    const url = new URL(this.baseUrl + path);
+    if (!query) return url;
+    for (const [key, value] of Object.entries(query)) {
+      if (value === undefined || value === null) continue;
+      if (Array.isArray(value)) {
+        if (value.length === 0) continue;
+        url.searchParams.set(key, value.join(','));
+      } else {
+        url.searchParams.set(key, String(value));
       }
     }
+    return url;
+  }
 
+  /**
+   * Issue a single authenticated HTTP attempt, without any retry logic.
+   *
+   * Always returns the raw {@link Response} (even for non-2xx statuses);
+   * the caller is responsible for checking `response.ok` and/or
+   * translating non-2xx responses into thrown errors.
+   */
+  private async sendOnce(method: string, url: URL, body: unknown): Promise<Response> {
+    const token = await this.tokenProvider.getToken();
     const headers: Record<string, string> = {
       authorization: `Bearer ${token}`,
       'user-agent': this.userAgent,
     };
     const requestInit: RequestInit = { method, headers };
-    if (init?.body !== undefined) {
+    if (body !== undefined) {
       headers['content-type'] = 'application/json';
-      requestInit.body = JSON.stringify(init.body);
+      requestInit.body = JSON.stringify(body);
     }
-
-    const response = await this.fetchImpl(url, requestInit);
-
-    if (!response.ok) {
-      const requestId = response.headers.get('x-apple-request-uuid') ?? undefined;
-      let errors: AppStoreConnectAPIErrorDetail[] = [];
-      try {
-        const body = (await response.json()) as { errors?: AppStoreConnectAPIErrorDetail[] };
-        errors = body.errors ?? [];
-      } catch {
-        /* Response body was absent or not valid JSON; fall back to empty errors[]. */
-      }
-      throw new AppStoreConnectAPIError(
-        `App Store Connect API request failed with status ${response.status}`,
-        response.status,
-        errors,
-        requestId,
-      );
-    }
-
-    return response;
+    return this.fetchImpl(url, requestInit);
   }
 
   /**
