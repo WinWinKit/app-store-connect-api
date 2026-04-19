@@ -3,6 +3,32 @@ import { AppStoreConnectAPIError, type AppStoreConnectAPIErrorDetail } from './e
 import { Apps } from './resources/apps.js';
 
 /**
+ * A single value accepted inside {@link QueryParams}.
+ *
+ * Primitives become the literal query value; arrays are serialized as a
+ * single comma-separated string (the App Store Connect / JSON:API
+ * convention, e.g. `?filter[bundleId]=com.acme.one,com.acme.two`); empty
+ * arrays, `null`, and `undefined` cause the parameter to be omitted.
+ */
+export type QueryValue =
+  | string
+  | number
+  | boolean
+  | ReadonlyArray<string | number | boolean>
+  | null
+  | undefined;
+
+/**
+ * Query parameters accepted by {@link AppStoreConnect.request}.
+ *
+ * Keys are parameter names exactly as Apple documents them (e.g.
+ * `"filter[bundleId]"`, `"fields[apps]"`). Values are either a single
+ * primitive or an array of primitives; see {@link QueryValue} for the
+ * serialization rules.
+ */
+export type QueryParams = Record<string, QueryValue>;
+
+/**
  * Credentials required to sign App Store Connect API requests.
  *
  * Obtain these from App Store Connect → Users and Access → Keys. Each key is
@@ -154,8 +180,10 @@ export class AppStoreConnect {
    *   `"/v1/apps/123"`). This matches the paths declared in Apple's
    *   OpenAPI spec.
    * @param init - Optional query parameters and request body. `query` values
-   *   that are `undefined` are omitted; `body` is JSON-serialized and a
-   *   `content-type: application/json` header is added automatically.
+   *   follow the rules in {@link QueryValue} (arrays become
+   *   comma-separated, `undefined`/`null`/empty arrays are omitted); `body`
+   *   is JSON-serialized and a `content-type: application/json` header is
+   *   added automatically.
    * @returns The parsed JSON response body, or `undefined` when Apple
    *   responds with `204 No Content`.
    * @throws {@link AppStoreConnectAPIError} - When Apple returns a non-2xx
@@ -165,14 +193,20 @@ export class AppStoreConnect {
   async request<T>(
     method: string,
     path: string,
-    init?: { query?: Record<string, string | number | undefined>; body?: unknown },
+    init?: { query?: QueryParams | undefined; body?: unknown },
   ): Promise<T> {
     const token = await this.tokenProvider.getToken();
     const url = new URL(this.baseUrl + path);
 
     if (init?.query) {
       for (const [key, value] of Object.entries(init.query)) {
-        if (value !== undefined) url.searchParams.set(key, String(value));
+        if (value === undefined || value === null) continue;
+        if (Array.isArray(value)) {
+          if (value.length === 0) continue;
+          url.searchParams.set(key, value.join(','));
+        } else {
+          url.searchParams.set(key, String(value));
+        }
       }
     }
 

@@ -15,4 +15,34 @@
 export { AppStoreConnect } from './client.js';
 export { AppStoreConnectError, AppStoreConnectAPIError } from './errors.js';
 export type { AppStoreConnectAPIErrorDetail, AppStoreConnectAPIErrorSource } from './errors.js';
-export type { AppStoreConnectOptions, AppStoreConnectCredentials } from './client.js';
+export type {
+  AppStoreConnectOptions,
+  AppStoreConnectCredentials,
+  QueryParams,
+  QueryValue,
+} from './client.js';
+
+/**
+ * Per-resource request/response types re-exported for convenience.
+ *
+ * Consumers rarely need to import these directly — resource methods already
+ * return the correct shapes — but they are occasionally useful when passing
+ * typed queries through helper functions.
+ */
+export type {
+  ListAppsQuery,
+  RetrieveAppQuery,
+  AppsResponse,
+  AppResponse,
+} from './resources/apps.js';
+
+/**
+ * The full set of types generated from Apple's App Store Connect OpenAPI
+ * specification (version 4.3). Re-exported so consumers can reference raw
+ * schema types (e.g. `components['schemas']['App']`) when calling
+ * {@link AppStoreConnect.request} directly against an endpoint that this
+ * library does not yet wrap with a typed resource method.
+ *
+ * Regenerate this module with `pnpm gen` whenever Apple bumps the spec.
+ */
+export type { components, operations, paths } from './generated/openapi.js';
